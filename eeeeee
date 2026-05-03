@@ -1,0 +1,305 @@
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
+local Window = Rayfield:CreateWindow({
+   Name = "Fware",
+   Icon = 0, -- Icon in Topbar. Can use Lucide Icons (string) or Roblox Image (number). 0 to use no icon (default).
+   LoadingTitle = "Loading Hub",
+   LoadingSubtitle = "by Kingz",
+   ShowText = "Ftap", -- for mobile users to unhide Rayfield, change if you'd like
+   Theme = "Default", -- Check https://docs.sirius.menu/rayfield/configuration/themes
+
+   ToggleUIKeybind = "K", -- The keybind to toggle the UI visibility (string like "K" or Enum.KeyCode)
+
+   DisableRayfieldPrompts = false,
+   DisableBuildWarnings = false, -- Prevents Rayfield from emitting warnings when the script has a version mismatch with the interface.
+
+   -- ScriptID = "sid_xxxxxxxxxxxx", -- Your Script ID from developer.sirius.menu — enables analytics, managed keys, and script hosting
+
+   ConfigurationSaving = {
+      Enabled = true,
+      FolderName = nil, -- Create a custom folder for your hub/game
+      FileName = "Big Hub"
+   },
+
+   Discord = {
+      Enabled = false, -- Prompt the user to join your Discord server if their executor supports it
+      Invite = "noinvitelink", -- The Discord invite code, do not include Discord.gg/. E.g. Discord.gg/ABCD would be ABCD
+      RememberJoins = true -- Set this to false to make them join the Discord every time they load it up
+   },
+
+   KeySystem = false, -- Set this to true to use our key system
+   KeySettings = {
+      Title = "Untitled",
+      Subtitle = "Key System",
+      Note = "No method of obtaining the key is provided", -- Use this to tell the user how to get a key
+      FileName = "Key", -- It is recommended to use something unique, as other scripts using Rayfield may overwrite your key file
+      SaveKey = true, -- The user's key will be saved, but if you change the key, they will be unable to use your script
+      GrabKeyFromSite = false, -- If this is true, set Key below to the RAW site you would like Rayfield to get the key from
+      Key = {"Hello"} -- List of keys that the system will accept, can be RAW file links (pastebin, github, etc.) or simple strings ("hello", "key22")
+   }
+})
+
+local MainTab = Window:CreateTab("Main", nil) -- Title, Image
+
+local Button = MainTab:CreateButton({
+   Name = "Trigger Bot",
+   Callback = function()
+   loadstring(game:HttpGet("https://raw.githubusercontent.com/expseller/triggerbot-main/refs/heads/main/triggerbot%20ftap"))()
+   end,
+})
+
+local Button = MainTab:CreateButton({
+   Name = "Pallet Glue / Lock",
+   Callback = function()
+   -- SERVICES
+local Players = game:GetService("Players")
+local ContextActionService = game:GetService("ContextActionService")
+
+-- PLAYER
+local player = Players.LocalPlayer
+local character = nil
+local root = nil
+
+----------------------------------------------------
+-- CONFIG
+----------------------------------------------------
+local WALL_HEIGHT = 7.5
+local WALL_THICKNESS = 0.5
+local ROOF_THICKNESS = 0.5
+local ACTION_NAME = "PalletContainmentHold"
+
+----------------------------------------------------
+local barriers = {}
+local containmentEnabled = false
+
+----------------------------------------------------
+-- CHARACTER HANDLING
+----------------------------------------------------
+local function cleanup()
+    for _, part in ipairs(barriers) do
+        if part and part.Parent then
+            part:Destroy()
+        end
+    end
+    barriers = {}
+    containmentEnabled = false
+end
+
+local function onCharacterAdded(char)
+    cleanup()
+    character = char
+    root = char:WaitForChild("HumanoidRootPart", 5)
+end
+
+player.CharacterAdded:Connect(onCharacterAdded)
+if player.Character then
+    onCharacterAdded(player.Character)
+end
+
+player.CharacterRemoving:Connect(cleanup)
+
+----------------------------------------------------
+-- PALLET DETECTION
+----------------------------------------------------
+local function getPallet()
+    if not root or not character then return nil end
+
+    local params = RaycastParams.new()
+    params.FilterType = Enum.RaycastFilterType.Blacklist
+    params.FilterDescendantsInstances = { character }
+    params.IgnoreWater = true
+
+    local result = workspace:Raycast(
+        root.Position,
+        Vector3.new(0, -12, 0),
+        params
+    )
+
+    if result and result.Instance and result.Instance:IsA("BasePart") then
+        return result.Instance
+    end
+
+    return nil
+end
+
+----------------------------------------------------
+-- BARRIER CREATION
+----------------------------------------------------
+local function makeBarrier(size, cframe, pallet)
+    local part = Instance.new("Part")
+    part.Size = size
+    part.CFrame = cframe
+    
+    -- Görünmezlik ve Fizik Ayarları
+    part.Transparency = 1
+    part.CanCollide = true      -- İçinden geçilmemesi için aktif
+    part.CanTouch = false       -- Grab scriptlerini engellemek için kapalı
+    part.CanQuery = false       -- Mouse ile seçilmeyi engellemek için kapalı
+    
+    -- Grab Engelleyici Diğer Ayarlar
+    part.Massless = true
+    part.Anchored = false       -- Weld kullanılacağı için false kalmalı
+    part.CastShadow = false
+    part.Name = "AntiGrabBarrier"
+    
+    -- ÖNEMLİ: Parçayı Pallet içine değil, Character içine koyuyoruz. 
+    -- Bu sayede pallet'i tutan scriptler bariyeri görmez.
+    part.Parent = character 
+
+    local weld = Instance.new("WeldConstraint")
+    weld.Part0 = pallet
+    weld.Part1 = part
+    weld.Parent = part
+
+    table.insert(barriers, part)
+end
+
+----------------------------------------------------
+-- SPAWN BARRIERS
+----------------------------------------------------
+local function spawnBarriers(pallet)
+    if containmentEnabled then return end
+
+    local size = pallet.Size
+    local cf = pallet.CFrame
+
+    local baseY = size.Y / 2
+    local wallY = baseY + WALL_HEIGHT / 2
+
+    -- FRONT
+    makeBarrier(
+        Vector3.new(size.X, WALL_HEIGHT, WALL_THICKNESS),
+        cf * CFrame.new(0, wallY, size.Z / 2 + WALL_THICKNESS / 2),
+        pallet
+    )
+
+    -- BACK
+    makeBarrier(
+        Vector3.new(size.X, WALL_HEIGHT, WALL_THICKNESS),
+        cf * CFrame.new(0, wallY, -size.Z / 2 - WALL_THICKNESS / 2),
+        pallet
+    )
+
+    -- RIGHT
+    makeBarrier(
+        Vector3.new(WALL_THICKNESS, WALL_HEIGHT, size.Z),
+        cf * CFrame.new(size.X / 2 + WALL_THICKNESS / 2, wallY, 0),
+        pallet
+    )
+
+    -- LEFT
+    makeBarrier(
+        Vector3.new(WALL_THICKNESS, WALL_HEIGHT, size.Z),
+        cf * CFrame.new(-size.X / 2 - WALL_THICKNESS / 2, wallY, 0),
+        pallet
+    )
+
+    -- ROOF
+    makeBarrier(
+        Vector3.new(size.X, ROOF_THICKNESS, size.Z),
+        cf * CFrame.new(0, baseY + WALL_HEIGHT + ROOF_THICKNESS / 2, 0),
+        pallet
+    )
+
+    containmentEnabled = true
+end
+
+----------------------------------------------------
+-- INPUT HANDLING (Q Tuşu)
+----------------------------------------------------
+local function handleAction(actionName, inputState)
+    if inputState == Enum.UserInputState.Begin then
+        if not containmentEnabled then
+            local pallet = getPallet()
+            if pallet then
+                spawnBarriers(pallet)
+            end
+        end
+    elseif inputState == Enum.UserInputState.End then
+        cleanup()
+    end
+    return Enum.ContextActionResult.Sink
+end
+
+ContextActionService:BindAction(
+    ACTION_NAME,
+    handleAction,
+    false,
+    Enum.KeyCode.C)
+   end,
+})
+
+local Slider = MainTab:CreateSlider({
+   Name = "Slider Example",
+   Range = {70, 120},
+   Increment = 10,
+   Suffix = "FOV",
+   CurrentValue = 70,
+   Flag = "FOV", -- A flag is the identifier for the configuration file; make sure every element has a different flag if you're using configuration saving to ensure no overlaps
+   Callback = function(Value)
+		workspace.CurrentCamera.FieldOfView = (Value)
+   end,
+})
+
+local Button = MainTab:CreateButton({
+   Name = "Bloody Premium Cracked",
+   Callback = function()
+   		loadstring(game:HttpGet("https://raw.githubusercontent.com/celestialteam/youhateme/refs/heads/main/BloodyPremiumCrack.lua"))()
+   end,
+})
+
+local Button = MainTab:CreateButton({
+   Name = "AimLock",
+   Callback = function()
+game:GetService("StarterGui"):SetCore("SendNotification", {Title = "Loaded", Text = "press Q to auto aim"})
+
+local UserInputService = game:GetService("UserInputService")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+-- Settings
+local Settings = {
+    BindKey = "Q" -- Custom Key
+}
+
+local isClicking = false
+
+local function getClosestPlayer()
+    local closestPlayer = nil
+    local shortestDistance = math.huge
+
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local distance = (player.Character.HumanoidRootPart.Position - LocalPlayer.Character.HumanoidRootPart.Position).magnitude
+            if distance < shortestDistance then
+                closestPlayer = player
+                shortestDistance = distance
+            end
+        end
+    end
+
+    return closestPlayer
+end
+
+local function aimAt(target)
+    if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+        local targetPosition = target.Character.HumanoidRootPart.Position
+        Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPosition)
+        
+        if not isClicking then
+            isClicking = true
+            mouse1click()
+            isClicking = false
+        end
+    end
+end
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if input.KeyCode == Enum.KeyCode[Settings.BindKey:upper()] and not gameProcessed then
+        local closestPlayer = getClosestPlayer()
+        aimAt(closestPlayer)
+    end
+end)
+   end,
+})
