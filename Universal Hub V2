@@ -1,0 +1,599 @@
+---@diagnostic disable: undefined-global
+local gameRef = game
+local Rayfield = loadstring(gameRef:HttpGet("https://sirius.menu/gen2"))()
+
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+local LocalPlayer = Players.LocalPlayer
+
+local function getCharacter()
+    return LocalPlayer.Character
+end
+
+local function getHumanoid()
+    local Character = getCharacter()
+
+    if not Character then
+        return nil
+    end
+
+    return Character:FindFirstChildOfClass("Humanoid")
+end
+
+local function notify(title, content)
+    Rayfield:Notify({
+        title = title,
+        content = content,
+        duration = 3
+    })
+end
+
+local Window = Rayfield:CreateWindow({
+    name = "Universal Hub",
+    subtitle = "v2.0",
+    sidebarLayout = true,
+    theme = "amethyst",
+})
+
+local MainTab = Window:CreateTab({
+    name = "Main 🏡"
+})
+
+MainTab:CreateSection({
+    name = "Player"
+})
+
+MainTab:CreateSlider({
+    name = "WalkSpeed",
+    range = {16, 500},
+    increment = 1,
+    value = 16,
+    suffix = " Speed",
+    flag = "WalkSpeed",
+    callback = function(value)
+        local Humanoid = getHumanoid()
+
+        if Humanoid then
+            Humanoid.WalkSpeed = value
+        end
+    end
+})
+
+MainTab:CreateSlider({
+    name = "JumpPower",
+    range = {50, 500},
+    increment = 1,
+    value = 50,
+    suffix = " Power",
+    flag = "JumpPower",
+    callback = function(value)
+        local Humanoid = getHumanoid()
+
+        if Humanoid then
+            Humanoid.UseJumpPower = true
+            Humanoid.JumpPower = value
+        end
+    end
+})
+
+MainTab:CreateButton({
+    name = "Reset Movement",
+    callback = function()
+        local Humanoid = getHumanoid()
+
+        if Humanoid then
+            Humanoid.WalkSpeed = 16
+            Humanoid.UseJumpPower = true
+            Humanoid.JumpPower = 50
+            notify("Movement", "Movement reset.")
+        else
+            notify("Error", "Humanoid not found.")
+        end
+    end
+})
+
+local CameraTab = Window:CreateTab({
+    name = "Camera 📷"
+})
+
+CameraTab:CreateSection({
+    name = "Camera"
+})
+
+CameraTab:CreateSlider({
+    name = "Field Of View",
+    range = {40, 120},
+    increment = 1,
+    value = 70,
+    suffix = "°",
+    flag = "FOV",
+    callback = function(value)
+        local Camera = workspace.CurrentCamera
+
+        if Camera then
+            Camera.FieldOfView = value
+        end
+    end
+})
+
+CameraTab:CreateButton({
+    name = "Reset FOV",
+    callback = function()
+        local Camera = workspace.CurrentCamera
+
+        if Camera then
+            Camera.FieldOfView = 70
+            notify("Camera", "FOV reset to 70.")
+        else
+            notify("Error", "Camera not found.")
+        end
+    end
+})
+
+local WorldTab = Window:CreateTab({
+    name = "World 🌎"
+})
+
+local HubsTab = Window:CreateTab({
+    name = "Hubs🔮 "
+})
+
+local PVPTab = Window:CreateTab({
+    name = "PVP 🕹️ "
+})
+
+--// ESP SETTINGS
+local ESP_ENABLED = false
+local TEAM_CHECK_ENABLED = true
+
+local ESP_COLOR = Color3.fromRGB(255, 0, 0)
+
+
+--// Remove a player's highlight
+local function removeHighlight(player)
+    local character = player.Character
+
+    if not character then
+        return
+    end
+
+    local highlight = character:FindFirstChild("JailbirdESP")
+
+    if highlight then
+        highlight:Destroy()
+    end
+end
+
+
+--// Remove all highlights
+local function clearESP()
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            removeHighlight(player)
+        end
+    end
+end
+
+
+--// Update player's highlight
+local function updateESP(player)
+    if player == LocalPlayer then
+        return
+    end
+
+    local character = player.Character
+
+    if not character then
+        return
+    end
+
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+
+    if not humanoid or humanoid.Health <= 0 then
+        removeHighlight(player)
+        return
+    end
+
+    --// Team check
+    local isEnemy = true
+
+    if TEAM_CHECK_ENABLED then
+        local localTeam = LocalPlayer.Team
+        local targetTeam = player.Team
+
+        if localTeam and targetTeam then
+            isEnemy = localTeam ~= targetTeam
+        elseif not localTeam and not targetTeam then
+            isEnemy = false
+        end
+    end
+
+    local highlight = character:FindFirstChild("JailbirdESP")
+
+    if not highlight then
+        highlight = Instance.new("Highlight")
+        highlight.Name = "JailbirdESP"
+        highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+        highlight.FillTransparency = 0.5
+        highlight.OutlineTransparency = 0
+        highlight.Parent = character
+    end
+
+    --// Colors
+highlight.FillColor = ESP_COLOR
+highlight.OutlineColor = ESP_COLOR
+end
+
+
+--// Update ESP when enabled
+local function updateAllESP()
+    if not ESP_ENABLED then
+        clearESP()
+        return
+    end
+
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            updateESP(player)
+        end
+    end
+end
+
+
+--// ESP toggle
+PVPTab:CreateToggle({
+    name = "ESP",
+    flag = "ESP",
+    value = false,
+
+    callback = function(value)
+        ESP_ENABLED = value
+
+        if ESP_ENABLED then
+            updateAllESP()
+        else
+            clearESP()
+        end
+    end
+})
+
+
+--// Team check
+PVPTab:CreateToggle({
+    name = "Team Check",
+    flag = "TeamCheck",
+    value = true,
+
+    callback = function(value)
+        TEAM_CHECK_ENABLED = value
+
+        if ESP_ENABLED then
+            updateAllESP()
+        end
+    end
+})
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+local LockEnabled = false
+local Target = nil
+
+local Smoothness = 0.15
+local FOVRadius = 150
+local MaxDistance = 100
+
+-- FOV circle
+local FOVCircle = Drawing.new("Circle")
+FOVCircle.Visible = false
+FOVCircle.Radius = FOVRadius
+FOVCircle.Thickness = 2
+FOVCircle.NumSides = 64
+FOVCircle.Filled = false
+
+local function GetClosestNPC()
+    local Character = LocalPlayer.Character
+    local Root = Character and Character:FindFirstChild("HumanoidRootPart")
+
+    if not Root then
+        return nil
+    end
+
+    local ScreenCenter = Vector2.new(
+        Camera.ViewportSize.X / 2,
+        Camera.ViewportSize.Y / 2
+    )
+
+    local Closest = nil
+    local ClosestScreenDistance = FOVRadius
+
+    for _, Model in ipairs(workspace:GetChildren()) do
+        if Model:IsA("Model") and Model ~= Character then
+            local Humanoid = Model:FindFirstChildOfClass("Humanoid")
+            local Head = Model:FindFirstChild("Head")
+
+            if Humanoid and Head and Humanoid.Health > 0 then
+                local WorldDistance =
+                    (Head.Position - Root.Position).Magnitude
+
+                if WorldDistance <= MaxDistance then
+                    local ScreenPosition, OnScreen =
+                        Camera:WorldToViewportPoint(Head.Position)
+
+                    if OnScreen then
+                        local ScreenDistance =
+                            (Vector2.new(
+                                ScreenPosition.X,
+                                ScreenPosition.Y
+                            ) - ScreenCenter).Magnitude
+
+                        if ScreenDistance < ClosestScreenDistance then
+                            ClosestScreenDistance = ScreenDistance
+                            Closest = Head
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    return Closest
+end
+
+-- Lock-on toggle
+PVPTab:CreateToggle({
+    Name = "Head Lock",
+    CurrentValue = false,
+    Flag = "HeadLock",
+
+    Callback = function(Value)
+        LockEnabled = Value
+        FOVCircle.Visible = Value
+
+        if not Value then
+            Target = nil
+        end
+    end,
+})
+
+-- Smoothness slider
+PVPTab:CreateSlider({
+    Name = "Lock Smoothness",
+    Range = {0.01, 1},
+    Increment = 0.01,
+    Suffix = "",
+    CurrentValue = Smoothness,
+    Flag = "LockSmoothness",
+
+    Callback = function(Value)
+        Smoothness = Value
+    end,
+})
+
+-- FOV slider
+PVPTab:CreateSlider({
+    Name = "Lock FOV",
+    Range = {25, 500},
+    Increment = 5,
+    Suffix = " px",
+    CurrentValue = FOVRadius,
+    Flag = "LockFOV",
+
+    Callback = function(Value)
+        FOVRadius = Value
+        FOVCircle.Radius = Value
+    end,
+})
+
+RunService.RenderStepped:Connect(function()
+    local ScreenCenter = Vector2.new(
+        Camera.ViewportSize.X / 2,
+        Camera.ViewportSize.Y / 2
+    )
+
+    FOVCircle.Position = ScreenCenter
+    FOVCircle.Radius = FOVRadius
+
+    if not LockEnabled then
+        return
+    end
+
+    if not Target or not Target.Parent then
+        Target = GetClosestNPC()
+    end
+
+    if Target then
+        local CameraPosition = Camera.CFrame.Position
+
+        local TargetCFrame = CFrame.lookAt(
+            CameraPosition,
+            Target.Position
+        )
+
+        Camera.CFrame = Camera.CFrame:Lerp(
+            TargetCFrame,
+            Smoothness
+        )
+
+        -- Re-check FOV and switch targets when necessary
+        local ScreenPosition, OnScreen =
+            Camera:WorldToViewportPoint(Target.Position)
+
+        if not OnScreen then
+            Target = GetClosestNPC()
+        end
+    end
+end)
+HubsTab:CreateButton({
+    Name = "Dex Explorer Script *works in all games*",
+    Callback = function()
+        loadstring(game:HttpGet("https://gist.githubusercontent.com/BROgenesis/958c1fee7d8ad100da7f7d020d5d67f3/raw/8dc95caca1b46aa9f4d9dd2433f6be3d9bc69e45/Dex++"))()
+    end,
+})
+
+HubsTab:CreateButton({
+    Name = "Remote Spy *dosnt work on xeno/solara and works in all games*",
+    Callback = function()
+        loadstring(game:HttpGetAsync("https://raw.githubusercontent.com/78n/SimpleSpy/main/SimpleSpyBeta.lua"))()
+    end,
+})
+
+HubsTab:CreateButton({
+    Name = "FreeCam Script with extra",
+    Callback = function()
+        loadstring(game:HttpGet("https://pastebin.com/raw/SuDKzFKD"))()
+    end,
+})
+
+HubsTab:CreateButton({
+    Name = "Arsenal hub",
+    Callback = function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/ex55/weed-client/refs/heads/main/main.lua"))()
+    end,
+})
+
+HubsTab:CreateButton({
+    Name = "prisonlife hub",
+    Callback = function()
+        loadstring(game:HttpGet("https://rawscripts.net/raw/UPD-Prison-Life-OP-Prison-Hax-Menu-by-AP-98305"))()
+    end,
+})
+
+HubsTab:CreateButton({
+    Name = "MRD VS SHERIFF HUB",
+    Callback = function()
+        loadstring(game:HttpGet("https://rawscripts.net/raw/Murderers-V-Sheriffs-DUELS-OP-Script-Silent-Aim-Hitbox-Expander-Esp-98555"))()
+    end,
+})
+
+HubsTab:CreateButton({
+    Name = "One Tap hub",
+    Callback = function()
+        loadstring(game:HttpGet("https://rawscripts.net/raw/FPS-One-Tap-Op-script-silent-aim-aimbot-triggerbot-esp-fly-and-more-94695"))()
+    end,
+})
+
+HubsTab:CreateButton({
+    Name = "GodMode",
+    Callback = function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/Rawbr10/Roblox-Scripts/refs/heads/main/God%20Mode%20Script%20Universal"))()
+    end,
+})
+
+WorldTab:CreateSection({
+    name = "Gravity"
+})
+
+local DefaultGravity = workspace.Gravity
+local DefaultGravity = Workspace.Gravity
+
+WorldTab:CreateToggle({
+    name = "Zero Gravity",
+    value = false,
+    flag = "ZeroGravity",
+    callback = function(value)
+        if value then
+            workspace.Gravity = 0
+            notify("Gravity", "Zero gravity enabled.")
+        else
+            workspace.Gravity = DefaultGravity
+            notify("Gravity", "Gravity restored.")
+        end
+    end
+})
+
+WorldTab:CreateSlider({
+    name = "Gravity",
+    range = {0, 300},
+    increment = 1,
+    value = DefaultGravity,
+    suffix = " Gravity",
+    flag = "Gravity",
+    callback = function(value)
+        workspace.Gravity = value
+    end
+})
+
+WorldTab:CreateButton({
+    name = "Reset Gravity",
+    callback = function()
+        workspace.Gravity = DefaultGravity
+        notify("Gravity", "Gravity reset.")
+    end
+})
+
+local UtilitiesTab = Window:CreateTab({
+    name = "Utilities 🛠️"
+})
+
+UtilitiesTab:CreateSection({
+    name = "Character"
+})
+
+UtilitiesTab:CreateButton({
+    name = "Respawn Character",
+    callback = function()
+        local Humanoid = getHumanoid()
+
+        if Humanoid then
+            Humanoid.Health = 0
+        else
+            notify("Error", "Character not found.")
+        end
+    end
+})
+
+UtilitiesTab:CreateButton({
+    name = "chat logger",
+    callback = function()
+
+    end
+})
+
+
+
+UtilitiesTab:CreateButton({
+    name = "Reset Character Movement",
+    callback = function()
+        local Humanoid = getHumanoid()
+
+        if Humanoid then
+            Humanoid.WalkSpeed = 16
+            Humanoid.UseJumpPower = true
+            Humanoid.JumpPower = 50
+            notify("Character", "Movement reset.")
+        else
+            notify("Error", "Humanoid not found.")
+        end
+    end
+})
+
+local SettingsTab = Window:CreateTab({
+    name = "Settings ⚙️"
+})
+
+SettingsTab:CreateSection({
+    name = "Hub"
+})
+
+SettingsTab:CreateButton({
+    name = "Test Notification",
+    callback = function()
+        notify("Universal Hub", "Hub is working.")
+    end
+})
+
+SettingsTab:CreateButton({
+    name = "Destroy GUI",
+    callback = function()
+        Rayfield:Destroy()
+    end
+})
+
+LocalPlayer.CharacterAdded:Connect(function(Character)
+    Character:WaitForChild("Humanoid", 10)
+end)
+
